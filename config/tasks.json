@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "defaults": {
+    "timeoutSeconds": 900,
+    "allowWritesOutsideRunDir": false,
+    "reviewRequired": true
+  },
+  "tasks": [
+    {
+      "id": "content-sync",
+      "name": "研究文章分发队列",
+      "description": "扫描 tuaran-home-page 的 research 文章，生成待审核的 Syncblog 分发队列。",
+      "enabled": true,
+      "schedule": {
+        "kind": "daily",
+        "time": "23:30"
+      },
+      "cwd": "/Users/tuaran/Documents/codex/agent-ops",
+      "command": ["node", "scripts/task-content-sync.mjs"],
+      "tags": ["content", "syncblog", "review"]
+    },
+    {
+      "id": "blogger-metrics",
+      "name": "博主联盟指标报告",
+      "description": "汇总 Blogger Alliance 已有指标导出，生成待审核报告。",
+      "enabled": true,
+      "schedule": {
+        "kind": "weekly",
+        "day": "monday",
+        "time": "01:00"
+      },
+      "cwd": "/Users/tuaran/Documents/codex/agent-ops",
+      "command": ["node", "scripts/task-blogger-metrics.mjs"],
+      "tags": ["blogger-alliance", "metrics", "weekly"]
+    },
+    {
+      "id": "lead-radar",
+      "name": "潜在客户雷达",
+      "description": "基于本地研究和目标客群，每晚生成 Blogger Alliance 潜在客户清单。",
+      "enabled": true,
+      "schedule": {
+        "kind": "daily",
+        "time": "02:00"
+      },
+      "cwd": "/Users/tuaran/Documents/codex/agent-ops",
+      "command": ["node", "scripts/task-lead-radar.mjs"],
+      "tags": ["blogger-alliance", "sales", "leads"]
+    },
+    {
+      "id": "employeehub-evolve",
+      "name": "EmployeeHub 自动进化巡检",
+      "description": "检查 EmployeeHub 状态、Agent 结构和下一步可安全推进的演进任务。",
+      "enabled": true,
+      "schedule": {
+        "kind": "daily",
+        "time": "03:00"
+      },
+      "cwd": "/Users/tuaran/Documents/codex/agent-ops",
+      "command": ["node", "scripts/task-employeehub-inspect.mjs"],
+      "tags": ["employeehub", "agent", "triage"]
+    },
+    {
+      "id": "openclaw-issue-scan",
+      "name": "OpenClaw 低风险 Issue 扫描",
+      "description": "运行已有 OpenClaw Issue 候选扫描，并记录输出供人工审核。",
+      "enabled": false,
+      "schedule": {
+        "kind": "every_n_days",
+        "days": 2,
+        "time": "04:00"
+      },
+      "cwd": "/Users/tuaran/Documents/codex/openclaw-issue-pr-tool",
+      "command": ["python3", "bin/openclaw-pr-tool", "scan", "--output", "/Users/tuaran/Documents/codex/agent-ops/data/artifacts/openclaw-latest-candidates.json"],
+      "tags": ["openclaw", "github", "issue-scan"]
+    }
+  ]
+}

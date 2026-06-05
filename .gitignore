@@ -1,0 +1,10 @@
+.DS_Store
+node_modules/
+
+# Local runtime state and sensitive auth token.
+data/
+!data/.gitkeep
+
+# Local Cloudflare tunnel credentials live outside the repo; keep only templates/docs.
+*.log
+*.pid

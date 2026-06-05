@@ -1,0 +1,7 @@
+tunnel: <TUNNEL_UUID>
+credentials-file: /Users/tuaran/.cloudflared/<TUNNEL_UUID>.json
+
+ingress:
+  - hostname: ops.2aran.com
+    service: http://127.0.0.1:4179
+  - service: http_status:404

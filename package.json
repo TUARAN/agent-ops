@@ -1,0 +1,21 @@
+{
+  "name": "agent-ops",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "list": "node scripts/agent-ops.mjs list",
+    "run": "node scripts/agent-ops.mjs run",
+    "run:due": "node scripts/agent-ops.mjs run-due",
+    "review": "node scripts/agent-ops.mjs review",
+    "dashboard:html": "node scripts/agent-ops.mjs render-html",
+    "launchd:generate": "node scripts/generate-launchd.mjs",
+    "launchd:serve": "node scripts/generate-serve-launchd.mjs",
+    "launchd:tunnel": "node scripts/generate-tunnel-launchd.mjs",
+    "tunnel:check": "node scripts/check-cloudflare-tunnel.mjs",
+    "serve": "node scripts/agent-ops.mjs serve"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
