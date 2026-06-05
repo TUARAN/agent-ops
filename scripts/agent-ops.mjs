@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
-import { randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -12,6 +12,9 @@ const TASKS_PATH = path.join(ROOT, "config", "tasks.json");
 const RUNS_DIR = path.join(ROOT, "data", "runs");
 const AUTH_PATH = path.join(ROOT, "data", "auth.json");
 const SESSION_COOKIE = "agent_ops_session";
+const SHARED_SESSION_COOKIE = "tuaran_session";
+const FALLBACK_OWNER_LOGINS = new Set(["tuaran"]);
+const FALLBACK_OWNER_EMAILS = new Set(["tuaran666@gmail.com"]);
 
 function nowIso() {
   return new Date().toISOString();
@@ -65,7 +68,94 @@ function parseCookies(req) {
   );
 }
 
+function base64UrlEncode(buffer) {
+  return Buffer.from(buffer).toString("base64url");
+}
+
+function base64UrlDecodeJson(value) {
+  return JSON.parse(Buffer.from(value, "base64url").toString("utf8"));
+}
+
+function splitEnv(value) {
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function mergeSets(...sets) {
+  return new Set(sets.flatMap((set) => [...set]));
+}
+
+function ownerConfig() {
+  return {
+    ids: mergeSets(
+      new Set(splitEnv(process.env.SITE_OWNER_IDS)),
+      new Set(splitEnv(process.env.SITE_OWNER_GITHUB_IDS)),
+      new Set(splitEnv(process.env.PRIVATE_VAULT_OWNER_IDS)),
+      new Set(splitEnv(process.env.VOICE_TASK_OWNER_IDS))
+    ),
+    logins: mergeSets(
+      new Set(splitEnv(process.env.SITE_OWNER_LOGINS)),
+      new Set(splitEnv(process.env.PRIVATE_VAULT_OWNER_LOGINS)),
+      new Set(splitEnv(process.env.SITE_OWNER_GITHUB_IDS)),
+      new Set(splitEnv(process.env.VOICE_TASK_OWNER_IDS)),
+      FALLBACK_OWNER_LOGINS
+    ),
+    emails: mergeSets(
+      new Set(splitEnv(process.env.SITE_OWNER_EMAILS)),
+      new Set(splitEnv(process.env.PRIVATE_VAULT_OWNER_EMAILS)),
+      FALLBACK_OWNER_EMAILS
+    )
+  };
+}
+
+function isOwnerUser(user) {
+  if (!user?.id) return false;
+
+  const owners = ownerConfig();
+  const id = String(user.id || "").toLowerCase();
+  const login = String(user.login || "").toLowerCase();
+  const email = String(user.email || "").toLowerCase();
+  const name = String(user.name || "").toLowerCase();
+
+  if (owners.ids.size > 0 && owners.ids.has(id)) return true;
+  if (owners.logins.has(login) || owners.logins.has(name)) return true;
+  if (email && owners.emails.has(email)) return true;
+
+  return false;
+}
+
+function verifySharedSession(token) {
+  const secret = process.env.NEXTAUTH_SECRET || process.env.AGENT_OPS_SESSION_SECRET;
+  if (!token || !secret) return null;
+
+  const parts = String(token).split(".");
+  if (parts.length !== 3) return null;
+
+  const [encodedHeader, encodedPayload, signature] = parts;
+  const signingInput = `${encodedHeader}.${encodedPayload}`;
+  const expected = base64UrlEncode(createHmac("sha256", secret).update(signingInput).digest());
+  if (!safeEqual(signature, expected)) return null;
+
+  try {
+    const payload = base64UrlDecodeJson(encodedPayload);
+    if (payload?.exp && Date.now() / 1000 > payload.exp) return null;
+    return payload?.user || null;
+  } catch {
+    return null;
+  }
+}
+
+function sharedOwnerFromRequest(req) {
+  const cookies = parseCookies(req);
+  const user = verifySharedSession(cookies[SHARED_SESSION_COOKIE]);
+  return isOwnerUser(user) ? user : null;
+}
+
 async function isAuthenticated(req) {
+  if (sharedOwnerFromRequest(req)) return true;
+
   const auth = await loadAuth();
   const cookies = parseCookies(req);
   return safeEqual(cookies[SESSION_COOKIE], auth.token);
@@ -524,7 +614,7 @@ function appShell(title, body, options = {}) {
       <nav class="nav">
         ${nav.map(([key, href, label]) => `<a class="${active === key ? "active" : ""}" href="${href}"><span>${label}</span><span>›</span></a>`).join("")}
       </nav>
-      <div class="side-note">受 Cloudflare Access 与本地口令双层保护。服务运行在 <code>127.0.0.1:4179</code>。</div>
+      <div class="side-note">优先复用 <code>2aran.com</code> owner session，并保留本地口令兜底。服务运行在 <code>127.0.0.1:4179</code>。</div>
     </aside>
     <main class="main">
       <div class="topbar">
@@ -804,11 +894,11 @@ function renderLogin(error = "") {
         <h1>Agent Ops<br />自动化控制台</h1>
         <p>这里负责调度本地任务、收集运行日志、预览产物并做人工审核。</p>
       </div>
-      <p>第一层由 Cloudflare Access 保护，第二层使用本机访问口令。</p>
+      <p>优先复用 2aran.com 的 owner session；没有主站 session 时，使用本机访问口令兜底。</p>
     </section>
     <section class="panel">
-      <h2>本地口令登录</h2>
-      <p class="muted">请输入本机访问口令。口令保存在：</p>
+      <h2>本地口令登录（兜底）</h2>
+      <p class="muted">主站 session 不可用时，输入本机访问口令。口令保存在：</p>
       <p class="path"><code>${htmlEscape(AUTH_PATH)}</code></p>
       ${error ? `<div class="error">${htmlEscape(error)}</div>` : ""}
       <form method="post" action="/login">

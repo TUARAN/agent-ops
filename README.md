@@ -33,6 +33,12 @@ Dashboard:
 http://localhost:4179
 ```
 
+Authentication:
+
+- `ops.2aran.com` first reuses the shared `tuaran_session` owner session from `2aran.com`.
+- The service must run with the same `NEXTAUTH_SECRET` as `tuaran-home-page` so it can verify that session.
+- If the shared session is unavailable, the local `data/auth.json` token remains as a fallback login method.
+
 If local port listening is blocked, render a static dashboard:
 
 ```bash

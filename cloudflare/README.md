@@ -19,6 +19,8 @@ Browser -> Cloudflare Access -> ops.2aran.com -> Cloudflare Tunnel -> 127.0.0.1:
 - Do not expose `127.0.0.1:4179` directly to the internet.
 - Put `ops.2aran.com` behind Cloudflare Access.
 - Allow only your own email or GitHub identity.
+- Reuse the `2aran.com` owner session by running Agent Ops with the same `NEXTAUTH_SECRET` as `tuaran-home-page`.
+- Keep the local `data/auth.json` token as a fallback login path for maintenance.
 - Keep task execution whitelisted through `config/tasks.json`.
 - Keep human review for publish/approval flows.
 
@@ -82,6 +84,7 @@ Start Agent Ops:
 
 ```bash
 cd /Users/tuaran/Documents/codex/agent-ops
+export NEXTAUTH_SECRET=<same-secret-as-tuaran-home-page>
 npm run serve
 ```
 
